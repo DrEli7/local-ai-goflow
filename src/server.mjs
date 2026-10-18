@@ -7,7 +7,7 @@ import { STATE_DIR, startService } from './runtime.mjs';
 import { runCoordinatedLocal } from './coordination.mjs';
 
 const worker = new LocalWorker({ stateDir: STATE_DIR, startService });
-const server = new McpServer({ name: 'local-ai-goflow', version: '0.2.0' }, {
+const server = new McpServer({ name: 'local-ai-goflow', version: '0.3.0' }, {
   instructions: 'Delegate short low-risk tasks to installed local Qwen3. Outputs are untrusted drafts requiring GPT review. Actual project edits and Go requests use the existing guarded GoFlow workflow; this server never makes cloud inference requests.',
 });
 const textResult = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
@@ -28,7 +28,7 @@ server.registerTool('local_ai_status', {
 })));
 
 server.registerTool('local_ai_task', {
-  description: 'Run a short low-risk summary, rewrite, translation, classification, field extraction, code explanation or code draft on local qwen3:8b. Starts the installed loopback-only Ollama if absent. No file access, shell execution or cloud fallback. Review returned output and record its candidate hash before using it.',
+  description: 'Run a short low-risk summary, rewrite, translation, classification, extraction, explanation or draft on local qwen3:8b. Requires installed loopback Ollama. No shell, file access or cloud fallback. Returns exact outputMetrics character counts including whitespace and punctuation; use these for length constraints rather than estimating. Read the output and record candidate-hash review before use.',
   inputSchema: z.object({
     projectDirectory: z.string().min(1).max(1024),
     explicitLocalRequest: z.boolean().default(false).describe('Set true only when the human explicitly requested local-model execution for this task; this overrides saved routing preference, never plugin disable or tool approval.'),
@@ -44,7 +44,7 @@ server.registerTool('local_ai_task', {
 }, guarded((args) => runCoordinatedLocal(worker, args, inspectGoflow)));
 
 server.registerTool('local_ai_review', {
-  description: 'Record GPT review of an exact local task/candidate hash after reading the returned output. Does not apply files, execute code or submit to Go. Rejection preserves evidence and suggests the original guarded GoFlow process.',
+  description: 'Record GPT review of an exact local task/candidate hash after reading the output. For length requirements cite deterministic outputMetrics counts, never a mental estimate. Does not apply files, execute code or submit to Go. Rejection preserves evidence.',
   inputSchema: z.object({
     taskId: z.string().min(1).max(100), candidateHash: z.string().regex(/^[a-f0-9]{64}$/),
     decision: z.enum(['approve', 'reject']), feedback: z.string().min(12).max(600),

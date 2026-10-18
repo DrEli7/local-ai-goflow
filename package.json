@@ -1,6 +1,6 @@
 {
   "name": "local-ai-goflow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -13,7 +13,8 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "start": "node src/server.mjs"
+    "start": "node src/server.mjs",
+    "chat": "node src/chat-server.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.3.1",

@@ -1,6 +1,6 @@
 {
   "name": "local-ai-goflow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local Qwen3 handles simple tasks, guarded GoFlow handles coding packages, and Codex reviews results.",
   "requires_local_executor": true,
   "skills": "./skills/",

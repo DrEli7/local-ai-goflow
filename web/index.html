@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>本地聊天 · Qwen3 8B</title>
+<!-- 样式表与控制器脚本均按约定从站点根路径加载，页面本身不包含任何内联脚本或网络请求 -->
+<link rel="stylesheet" href="/chat.css">
+</head>
+<body>
+<div id="app" class="app" data-state="idle">
+  <aside id="sidebar" class="sidebar" aria-label="会话历史">
+    <div class="sidebar__head">
+      <button id="new-chat" class="btn btn--primary btn--block" type="button">＋ 新聊天</button>
+    </div>
+    <div class="sidebar__body">
+      <p class="sidebar__section-label" id="session-list-label">历史记录</p>
+      <ul id="session-list" class="session-list" aria-labelledby="session-list-label">
+        <li class="session-list__empty">暂无历史会话</li>
+      </ul>
+    </div>
+    <div class="sidebar__foot">
+      <p class="sidebar__note">历史记录保存在本机浏览器中，不会上传到网络。本项目编码分工在 Codex 中执行。</p>
+    </div>
+  </aside>
+
+  <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button id="sidebar-toggle" class="btn btn--ghost sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false">历史</button>
+      <h1 class="topbar__title">本地 Qwen3 8B</h1>
+      <div id="status" class="status" data-state="idle" role="status">
+        <span class="status__dot" aria-hidden="true"></span>
+        <span id="status-text" class="status__text">就绪</span>
+      </div>
+    </header>
+
+    <main id="messages" class="messages">
+      <section id="welcome" class="welcome">
+        <h2 class="welcome__title">今天想聊点什么？</h2>
+        <p class="welcome__subtitle">模型在本机运行，历史记录只保存在这台设备上。</p>
+        <div class="prompts">
+          <button class="prompt" type="button" data-prompt="用三句话介绍一下你自己。">用三句话介绍一下你自己</button>
+          <button class="prompt" type="button" data-prompt="帮我把下面这段文字改得更简洁：">帮我改写一段文字</button>
+          <button class="prompt" type="button" data-prompt="用 JavaScript 写一个防抖函数，并解释思路。">写一个 JavaScript 防抖函数</button>
+        </div>
+      </section>
+      <ol id="message-list" class="message-list" aria-live="polite"></ol>
+    </main>
+
+    <!-- 控制器需要在 submit 时调用 preventDefault，并把 #composer-input 的内容交给 chat-state -->
+    <form id="composer" class="composer">
+      <div class="composer__inner">
+        <label class="sr-only" for="composer-input">输入消息</label>
+        <textarea id="composer-input" class="composer__input" name="message" rows="1" placeholder="给本地 Qwen3 8B 发送消息…（Enter 发送，Shift+Enter 换行）"></textarea>
+        <div class="composer__actions">
+          <button id="send" class="btn btn--send" type="submit">发送</button>
+          <button id="stop" class="btn btn--stop" type="button" hidden>停止</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script type="module" src="/app.mjs"></script>
+</body>
+</html>

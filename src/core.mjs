@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { appendFile, mkdir, open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { measureOutput } from './output-metrics.mjs';
 
 export const TASK_TYPES = Object.freeze([
   'summarize', 'rewrite', 'translate', 'classify', 'extract_json',
@@ -416,12 +417,13 @@ export class LocalWorker {
   async _finish(taskId, input, started, attempts, usage, status, reason, output) {
     const durationSeconds = Math.round((performance.now() - started) / 1000 * 1000) / 1000;
     const candidateHash = output ? hash(canonical(output)) : undefined;
+    const outputMetrics = output ? measureOutput(output) : undefined;
     const metrics = { modelRequests: attempts, ...usage };
     await this._append({ event: 'task', taskId, kind: input.kind, source: SOURCE,
       status, ...(reason ? { reason } : {}), attempts, durationSeconds, metrics,
-      ...(candidateHash ? { candidateHash } : {}) });
+      ...(candidateHash ? { candidateHash, outputMetrics } : {}) });
     return { taskId, status, kind: input.kind, source: SOURCE,
-      ...(output ? { output, candidateHash } : {}), attempts, durationSeconds, metrics,
+      ...(output ? { output, candidateHash, outputMetrics } : {}), attempts, durationSeconds, metrics,
       ...(reason ? { reason } : {}), nextAction: nextAction(status) };
   }
 

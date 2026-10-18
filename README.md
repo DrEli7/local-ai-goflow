@@ -4,6 +4,8 @@
 
 本地 Qwen3 处理简单短任务，Go 编写普通功能包及测试，Codex GPT 判断范围、核对结果并最终审核。安装后将默认分工写入用户级 `AGENTS.md`，供本机各项目和后续新聊天使用，无需每次提醒。用户的明确选择、保存的模式和项目规则继续优先。
 
+**v0.3.0** 增加独立的本地聊天窗口、桌面快捷方式安装器和确定性输出字数统计，并澄清 Go 新建文件的声明方式。独立窗口直接与本机 Qwen3 对话；Codex 聊天中的本地、Go 和 GPT 分工仍通过下述插件流程执行。变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 ```mermaid
 flowchart LR
     U[用户任务] --> C[Codex 判断范围]
@@ -44,6 +46,32 @@ powershell -NoProfile -File .\scripts\install.ps1
 
 保留此仓库目录和 `node_modules`；安装包装引用这份源码，移动目录后需要重新运行安装器。仓库目录须对当前用户可写，用于 `state` 元数据。安装不下载或启动模型，不修改 Windows 自启。公开版使用事先运行的 Ollama；可在另一个终端执行 `ollama serve`（服务已经运行时无需重复启动）。准备模型时使用官方 Ollama 流程，例如 `ollama pull qwen3:8b`，网络或存储条件需自行满足。
 
+## 本地聊天窗口与桌面入口
+
+确认 Ollama 已在本机运行并已安装 `qwen3:8b`，在仓库目录执行：
+
+```powershell
+powershell -NoProfile -File .\scripts\start-chat.ps1 -CheckOnly
+powershell -NoProfile -File .\scripts\start-chat.ps1
+powershell -NoProfile -File .\scripts\install-chat-shortcut.ps1 -CheckOnly
+powershell -NoProfile -File .\scripts\install-chat-shortcut.ps1
+```
+
+启动器以隐藏进程运行本包聊天服务，再以可见的 Edge/Chrome 应用窗口打开聊天界面。应用窗口使用本包 `state/chat/browser-profile/` 的独立本机配置，重复打开会复用该配置，不继承日常浏览器的个人扩展，也不修改原浏览器设置或全局禁用扩展。启动参数包含固定应用地址、独立 `--user-data-dir`、`--no-first-run` 和 `--no-default-browser-check`。浏览器不在常见安装位置时，会明确提示并使用系统浏览器的原有配置，此回退不提供独立应用配置。聊天页面固定为 `http://127.0.0.1:18441/`；仅启动服务可加 `-NoWindow`。启动器检查服务的应用标识、版本和当前服务器文件 SHA256，匹配时复用；端口被其他程序或不同版本占用时拒绝启动，不终止占用者。`-CheckOnly` 只做预检，不创建浏览器配置、启动服务或窗口。
+
+桌面入口默认名为“本地 AI - Qwen3”。安装器不会覆盖不属于本应用的同名快捷方式；可用 `-ShortcutName 'Qwen3 聊天'` 选择另一个名字。更新自己创建的入口前，会把旧入口备份到忽略提交的 `state/chat/shortcut-backups/`。如需运行个人自建的启动包装，可显式提供 `-LauncherPath`，值必须是已存在的可信 `.ps1` 绝对路径；该脚本会在点击入口时执行，请先阅读其内容。公开启动器不会自动猜测或启动个人的 Ollama 包装。
+
+窗口提供本地多轮对话和会话管理；正常应用窗口的聊天历史保存在上述独立浏览器配置的本机存储，可在界面删除单个会话或清空，卸载插件不会自动删除历史。若使用系统浏览器回退，则历史保存在该浏览器的原有本机配置。这个独立窗口不会调用 Go，也不包含 Codex/GPT 审核；需要自动分工、项目编码和审核时，在 Codex 中提出任务。运行状态日志位于 `state/chat/`，不写入对话正文。关闭窗口后，聊天服务约 10 分钟空闲时自动退出。可手工停止本包服务：
+
+```powershell
+powershell -NoProfile -File .\scripts\stop-chat.ps1 -CheckOnly
+powershell -NoProfile -File .\scripts\stop-chat.ps1
+```
+
+停止器只处理健康标识、版本、服务器文件 hash、PID 和 Node 路径均与本包匹配的进程，不停止 Ollama。若启动时显式传入 `-NodeExe`，停止时也应提供同一个绝对 Node 路径。升级前先停止本包聊天服务，再更新源码；源码 hash 已变化时，停止器会拒绝按新源码认领旧进程。
+
+## 在 Codex 中使用默认分工
+
 在新聊天中开始使用。当前聊天尚未刷新工具目录时，可以使用同一插件的受限客户端；它仍检查用户和项目的插件/工具禁用与审批，遇到需原生审批的设置会拒绝替代执行。
 
 ```powershell
@@ -60,6 +88,8 @@ $task | ConvertTo-Json -Compress | node $localClient local_ai_task
 
 返回 `local_completed_review_required` 后，主智能体须阅读实际 `output`，核对输入，并用该 `taskId`、`candidateHash` 调用 `local_ai_review`；格式通过不是审核通过。
 
+有字数限制时，主智能体应使用 `outputMetrics` 中对应字段的机器计数。`unicodeCodePoints` 是 Unicode code point 数，`utf16CodeUnits` 是 JavaScript 字符串长度；两者均含标点、空格、换行，emoji 下可能不同，也不等于可视字形数量。默认中文摘要可引用 `unicodeCodePoints`，用户指定其他计数规则时按指定规则核实。统计不会代替内容审核或改变候选 hash，历史请求与审核也不会被重写。
+
 ## 工具与默认分工
 
 | 工具 | 用途 |
@@ -71,6 +101,14 @@ $task | ConvertTo-Json -Compress | node $localClient local_ai_task
 | `local_ai_goflow_plan` | 通过受限 GoFlow status/usage/route 生成交接计划；不调用云模型 |
 
 普通项目修改和完整测试交 Go；复杂或高风险父任务由 GPT 负责关键判断，并拆出独立普通包路由。桥接计划保留已知 `executionBackend` 和 `splitRequired`，仍不把缓存可用性当作执行许可。Go 不可用时保留原 GoFlow 返回的真实队列任务，不假称已排队，也不自动换成其他付费 provider。
+
+GoFlow 提交时，`files` 只包含已存在、明确选择的输入文件。现有可编辑文件同时列入 `files` 和 `editableFiles`；待新建文件只列入 `editableFiles`，不要创建空占位。完全新建且无需已有输入的功能包可使用以下文件声明，其他提交参数仍按原 GoFlow schema 提供：
+
+```json
+{"files": [], "editableFiles": ["tags.mjs", "tags.test.mjs"]}
+```
+
+Go 编写实现和完整测试，GPT 在隔离验收后阅读实际结果再批准应用。公开插件的交接计划只查看和描述路由，不替代原 GoFlow 的提交、快照校验或批准。
 
 用户可说“强制 GPT”“强制 Go”“关闭自动委派”“恢复自动模式”。全局规则、插件技能与实际保存模式一起决定执行；本插件不擅自更改模式。GPT 自身仍使用当前 ChatGPT/Codex 订阅。
 
@@ -91,7 +129,7 @@ $task | ConvertTo-Json -Compress | node $localClient local_ai_task
 npm test
 ```
 
-测试使用 Node 内置 runner，覆盖结构化输出、失败与审核、保存模式、项目配置/禁用/审批、MCP 协议、固定 GoFlow 调用、额度视图及交接元信息。离线测试不调用模型。真实部署曾完成“Qwen3 整理需求 → Go 实现/修复 → 14 项验收 → GPT accept”；该记录只说明一个合成样例可工作，个人原始日志与账户证据不发布。
+测试使用 Node 内置 runner，覆盖结构化输出、失败与审核、保存模式、项目配置/禁用/审批、MCP 协议、固定 GoFlow 调用、额度视图及交接元信息。离线测试不调用模型。真实部署曾完成“Qwen3 整理需求 → Go 实现/修复 → 14 项验收 → GPT accept”。另一次跨项目的真实新聊天只收到合成会议纪要和标签工具业务要求，没有分工提醒：自动调用 Qwen3 整理摘要，经 GPT 审核后保存；Go 编写标签函数及测试，一次修复后 **18/18 测试通过**，由 GPT 阅读代码与日志并批准应用，落盘文件与已测试候选 hash 一致。这些记录只证明各自样例在当时配置下工作，个人原始日志与账户证据不发布，也不据此推算费用节约。
 
 依赖通过 lockfile 固定并从官方 npm registry 获取；安装使用 `--ignore-scripts`。依赖漏洞状态随时间变化。提交前请运行测试，保持凭据和现场日志不入库。安全问题请勿附带真实 key、认证配置或个人日志。
 

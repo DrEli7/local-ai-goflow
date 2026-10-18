@@ -134,6 +134,18 @@ test('all seven task kinds validate their promised result shapes', async (t) => 
   assert.equal(metrics.tasks, 7);
 });
 
+test('outputMetrics counts the real summary without altering the candidate hash or logging text', async t => {
+  const text = '小林周三18:00前完成接口文档，小周周五10:00演示功能，小陈周四16:00前完成演示数据检查。';
+  const stateDir = await sandbox(t);
+  const worker = new LocalWorker({ stateDir, requestJson: ollama([reply({ result: text })]).requestJson });
+  const result = await worker.run(input());
+  assert.deepEqual(result.outputMetrics.strings, [{ path: '/result', unicodeCodePoints: 50, utf16CodeUnits: 50 }]);
+  assert.equal(result.candidateHash, createHash('sha256').update(JSON.stringify({ result: text })).digest('hex'));
+  const raw = await readFile(join(stateDir, 'events.jsonl'), 'utf8');
+  assert.ok(!raw.includes(text));
+  assert.deepEqual(JSON.parse(raw.trim()).outputMetrics, result.outputMetrics);
+});
+
 test('input validation enforces task/string/list/field boundaries before HTTP', async (t) => {
   const fake = ollama();
   const worker = new LocalWorker({ stateDir: await sandbox(t), requestJson: fake.requestJson });

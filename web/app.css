@@ -1,0 +1,10 @@
+.message-actions { display:flex; align-items:center; gap:12px; min-height:25px; }
+.text-button { border:0; background:none; color:var(--color-text-soft); padding:4px 0; cursor:pointer; font-size:12px; }
+.text-button:hover { color:var(--color-accent); }
+.status { gap:8px; }
+.composer-note { margin:8px auto 0; font-size:11px; text-align:center; color:var(--color-text-soft); }
+.code-block { margin:12px 0; padding:16px; background:#f5f6f7; border:1px solid #e6e8eb; border-radius:12px; overflow:auto; white-space:pre; font:13px/1.6 Consolas,monospace; }
+.toast { position:fixed; left:50%; bottom:150px; transform:translate(-50%,10px); max-width:min(500px,90vw); padding:10px 16px; border-radius:12px; background:#253930; color:white; box-shadow:0 8px 24px #0002; opacity:0; pointer-events:none; transition:opacity .2s,transform .2s; z-index:60; font-size:13px; }
+.toast.visible { opacity:1; transform:translate(-50%,0); }
+.message__bubble:empty { min-height:1em; }
+@media(max-width:600px) { .topbar__title{font-size:16px;} .status .text-button{display:none;} .composer-note{font-size:10px;} .composer__input{font-size:16px;} }
