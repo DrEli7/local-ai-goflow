@@ -7,7 +7,7 @@ import { STATE_DIR, startService } from './runtime.mjs';
 import { runCoordinatedLocal } from './coordination.mjs';
 
 const worker = new LocalWorker({ stateDir: STATE_DIR, startService });
-const server = new McpServer({ name: 'local-ai-goflow', version: '0.3.0' }, {
+const server = new McpServer({ name: 'local-ai-goflow', version: '0.4.0' }, {
   instructions: 'Delegate short low-risk tasks to installed local Qwen3. Outputs are untrusted drafts requiring GPT review. Actual project edits and Go requests use the existing guarded GoFlow workflow; this server never makes cloud inference requests.',
 });
 const textResult = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });

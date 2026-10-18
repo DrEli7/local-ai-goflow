@@ -7,4 +7,59 @@
 .toast { position:fixed; left:50%; bottom:150px; transform:translate(-50%,10px); max-width:min(500px,90vw); padding:10px 16px; border-radius:12px; background:#253930; color:white; box-shadow:0 8px 24px #0002; opacity:0; pointer-events:none; transition:opacity .2s,transform .2s; z-index:60; font-size:13px; }
 .toast.visible { opacity:1; transform:translate(-50%,0); }
 .message__bubble:empty { min-height:1em; }
-@media(max-width:600px) { .topbar__title{font-size:16px;} .status .text-button{display:none;} .composer-note{font-size:10px;} .composer__input{font-size:16px;} }
+.topbar { min-height:66px; }
+.topbar__title { display:flex; align-items:center; gap:10px; font-size:17px; letter-spacing:-.2px; }
+.auto-badge { padding:3px 8px; border:1px solid #d5e8df; border-radius:7px; background:#eef7f2; color:#22694e; font-size:11px; font-weight:500; letter-spacing:0; }
+.project-bar { flex:none; padding:10px 22px 9px; border-bottom:1px solid var(--color-border); background:#fcfdfc; }
+.project-bar__main { display:flex; align-items:center; gap:10px; min-width:0; }
+.project-bar__main label { color:var(--color-text-soft); font-size:12px; flex:none; }
+.project-bar select { max-width:440px; min-width:0; padding:5px 24px 5px 9px; border:1px solid var(--color-border); border-radius:7px; background:white; font-size:12px; text-overflow:ellipsis; }
+.project-bar select:disabled { color:#49504a; opacity:1; background:#f6f7f6; }
+.project-path { margin:4px 0 0; color:#7b817c; font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.project-form { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 3px; padding-top:12px; border-top:1px solid var(--color-border); }
+.project-form input { flex:1; min-width:200px; border:1px solid var(--color-border-strong); background:#fff; border-radius:8px; padding:8px 10px; font-size:12px; }
+.project-form .btn { padding:7px 11px; font-size:12px; }
+.project-form__note { flex-basis:100%; margin:0; font-size:11px; color:var(--color-text-soft); }
+.welcome { padding-top:46px; }
+.welcome-mark { width:48px; height:48px; display:grid; place-items:center; margin:0 auto 20px; border-radius:15px; background:#174f3a; box-shadow:0 4px 18px #174f3a18; color:#fff; font-size:26px; font-weight:600; }
+.welcome__title { font-size:27px; letter-spacing:-.6px; }
+.welcome__subtitle { font-size:14px; }
+.division-strip { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:19px 0 25px; }
+.division-strip span { font-size:11px; padding:4px 9px; border:1px solid #e4e9e6; border-radius:999px; color:#627067; background:#fcfdfc; }
+.run-panel { margin:8px 0 1px; padding:10px 13px; border:1px solid #e1e9e4; border-radius:11px; background:#f9fcfa; }
+.run-panel__phase { display:flex; align-items:center; gap:7px; margin:0; color:#496454; font-size:11.5px; font-weight:600; }
+.run-panel__phase::before { content:''; width:6px; height:6px; border-radius:50%; background:#729c82; flex:none; }
+.message[data-status="generating"] .run-panel__phase::before { animation:pulse 1.1s ease-in-out infinite; }
+.run-panel__note,.run-panel__error { margin:5px 0 0; font-size:11px; color:#788079; overflow-wrap:anywhere; }
+.run-panel__error { color:#a44533; }
+.run-receipts { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:7px; }
+.run-receipt { display:flex; gap:5px 9px; align-items:center; flex-wrap:wrap; font-size:11px; }
+.run-receipt__source { color:#355c46; font-weight:600; }
+.run-receipt__status { color:#607568; }
+.run-receipt__id { flex-basis:100%; color:#859087; font-size:10px; overflow-wrap:anywhere; user-select:all; }
+.pending-card { background:#fff; border:1px solid #d6e4da; border-radius:9px; margin-top:12px; padding:14px; }
+.pending-card__title { margin:0 0 9px; font-size:13px; color:#314c3b; }
+.pending-card__detail { margin:0 0 13px; padding:10px; max-height:280px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; border:1px solid #e5e9e6; border-radius:7px; background:#f7f9f7; color:#465449; font:11px/1.6 Consolas,"Microsoft YaHei",monospace; }
+.pending-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.pending-card .btn { padding:7px 13px; font-size:12px; }
+.pending-card__note { margin:9px 0 0; color:#7b827c; font-size:10.5px; }
+.pending-card__error { margin:8px 0 0; color:#a44533; font-size:12px; }
+.pending-question { display:flex; flex-direction:column; gap:6px; margin:0 0 13px; }
+.pending-question__label { font-size:12px; color:#445449; }
+.pending-question__input { width:100%; min-height:58px; padding:8px 10px; resize:vertical; border:1px solid #d9e1db; border-radius:7px; background:#fff; font-size:12px; line-height:1.5; }
+.pending-options { display:flex; gap:6px; flex-wrap:wrap; }
+.pending-option { border:1px solid #e0e8e2; border-radius:7px; background:#f7faf8; color:#516457; padding:4px 8px; font-size:11px; cursor:pointer; }
+.pending-option:hover:not(:disabled) { border-color:#8db49a; background:#edf5ef; }
+.sidebar__note { font-size:10.5px; line-height:1.65; }
+.composer-note { max-width:760px; line-height:1.5; }
+@media(max-width:860px) { .project-bar{padding:9px 16px;} .welcome{padding-top:30px;} }
+@media(max-width:600px) {
+  .topbar{padding:11px 12px;gap:8px;} .topbar__title{font-size:15px;gap:6px;} .auto-badge{padding:2px 5px;font-size:10px;}
+  .status{padding:4px 7px;font-size:10.5px;gap:5px;} .status .text-button{font-size:10px;}
+  .project-bar{padding:8px 12px;} .project-bar__main{gap:7px;flex-wrap:wrap;} .project-bar select{flex:1;max-width:calc(100% - 70px);}
+  .project-bar__main>.text-button{font-size:10.5px;} .project-path{font-size:9.5px;}
+  .project-form input{flex-basis:100%;min-width:0;font-size:16px;} .project-form__note{font-size:10px;}
+  .welcome{padding-top:28px;} .welcome-mark{width:42px;height:42px;font-size:23px;margin-bottom:17px;} .welcome__title{font-size:22px;} .welcome__subtitle{font-size:12px;}
+  .division-strip{gap:5px;margin:14px 0 20px;} .division-strip span{font-size:9.5px;padding:3px 7px;}
+  .composer-note{font-size:9.5px;} .composer__input{font-size:16px;} .pending-card{padding:10px;} .pending-question__input{font-size:16px;}
+}

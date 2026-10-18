@@ -7,7 +7,9 @@ import { createChatServer, validateMessages } from '../src/chat-server.mjs';
 async function fixture(t, transport = { status: async () => true, chat: async (messages, { onDelta }) => {
   onDelta('你好'); onDelta('，本地。'); return { content: '你好，本地。', truncated: false };
 } }) {
-  const server = await createChatServer({ transport, idleMs: 0 });
+  const server = await createChatServer({ transport, idleMs: 0, coordinator: {
+    status: async () => ({ available: true, account: 'chatgpt', reason: null }), close() {},
+  } });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
@@ -39,7 +41,7 @@ test('status identifies the app without exposing paths or requiring model infere
   const response = await fetch(base + '/api/status');
   const value = await response.json();
   assert.equal(value.app, 'local-ai-goflow-chat');
-  assert.equal(value.version, '0.3.0');
+  assert.equal(value.version, '0.4.0');
   assert.equal(value.model, 'qwen3:8b');
   assert.equal(value.available, true);
   assert.match(value.serverHash, /^[a-f0-9]{64}$/);

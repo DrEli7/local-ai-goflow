@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>本地聊天 · Qwen3 8B</title>
+<title>GoFlow · 自动分工聊天</title>
 <!-- 样式表与控制器脚本均按约定从站点根路径加载，页面本身不包含任何内联脚本或网络请求 -->
 <link rel="stylesheet" href="/chat.css">
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/icon.svg">
 </head>
 <body>
 <div id="app" class="app" data-state="idle">
@@ -21,7 +23,7 @@
       </ul>
     </div>
     <div class="sidebar__foot">
-      <p class="sidebar__note">历史记录保存在本机浏览器中，不会上传到网络。本项目编码分工在 Codex 中执行。</p>
+      <p class="sidebar__note">一个窗口完成需求、执行与审核。简单任务交本地模型，普通编码交 Go，由 Codex 协调和审核。</p>
     </div>
   </aside>
 
@@ -30,21 +32,39 @@
   <div class="main">
     <header class="topbar">
       <button id="sidebar-toggle" class="btn btn--ghost sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false">历史</button>
-      <h1 class="topbar__title">本地 Qwen3 8B</h1>
+      <h1 class="topbar__title">GoFlow <span class="auto-badge">自动分工</span></h1>
       <div id="status" class="status" data-state="idle" role="status">
         <span class="status__dot" aria-hidden="true"></span>
-        <span id="status-text" class="status__text">就绪</span>
+        <span id="status-text" class="status__text">连接 Codex…</span>
       </div>
     </header>
 
+    <section class="project-bar" aria-label="当前项目">
+      <div class="project-bar__main">
+        <label for="project-select">工作目录</label>
+        <select id="project-select" aria-describedby="project-path" disabled><option>正在读取项目…</option></select>
+        <button id="project-add" class="text-button" type="button">选择其他目录</button>
+      </div>
+      <p id="project-path" class="project-path">默认使用独立工作区；编码文件会保存在选定目录。</p>
+      <form id="project-form" class="project-form" hidden>
+        <label class="sr-only" for="project-directory">本机项目的完整路径</label>
+        <input id="project-directory" type="text" placeholder="粘贴本机项目的完整路径，例如 E:\\Projects\\my-app" maxlength="1024" autocomplete="off" spellcheck="false">
+        <button id="project-confirm" class="btn btn--primary" type="submit">使用此目录</button>
+        <button id="project-cancel" class="btn btn--ghost" type="button">取消</button>
+        <p class="project-form__note">仅在新聊天发送首条消息前选择。此目录是本聊天的工作目录，沿用本机 Codex 的权限与审批设置。</p>
+      </form>
+    </section>
+
     <main id="messages" class="messages">
       <section id="welcome" class="welcome">
-        <h2 class="welcome__title">今天想聊点什么？</h2>
-        <p class="welcome__subtitle">模型在本机运行，历史记录只保存在这台设备上。</p>
+        <div class="welcome-mark" aria-hidden="true">G</div>
+        <h2 class="welcome__title">把需求交给一个窗口</h2>
+        <p class="welcome__subtitle">Codex 理解需求并协调分工，审核后把结果带回来。</p>
+        <div class="division-strip" aria-label="默认分工"><span>本地 · 简单任务</span><span>Go · 普通编码</span><span>GPT · 协调与审核</span></div>
         <div class="prompts">
-          <button class="prompt" type="button" data-prompt="用三句话介绍一下你自己。">用三句话介绍一下你自己</button>
+          <button class="prompt" type="button" data-prompt="把下面这段文字总结成三句话：">总结一段文字</button>
           <button class="prompt" type="button" data-prompt="帮我把下面这段文字改得更简洁：">帮我改写一段文字</button>
-          <button class="prompt" type="button" data-prompt="用 JavaScript 写一个防抖函数，并解释思路。">写一个 JavaScript 防抖函数</button>
+          <button class="prompt" type="button" data-prompt="在当前工作目录写一个 JavaScript 防抖函数，补齐测试，并审核实现。">实现防抖函数并测试</button>
         </div>
       </section>
       <ol id="message-list" class="message-list" aria-live="polite"></ol>
@@ -54,7 +74,7 @@
     <form id="composer" class="composer">
       <div class="composer__inner">
         <label class="sr-only" for="composer-input">输入消息</label>
-        <textarea id="composer-input" class="composer__input" name="message" rows="1" placeholder="给本地 Qwen3 8B 发送消息…（Enter 发送，Shift+Enter 换行）"></textarea>
+        <textarea id="composer-input" class="composer__input" name="message" rows="1" placeholder="直接说你的需求…（Enter 发送，Shift+Enter 换行）"></textarea>
         <div class="composer__actions">
           <button id="send" class="btn btn--send" type="submit">发送</button>
           <button id="stop" class="btn btn--stop" type="button" hidden>停止</button>

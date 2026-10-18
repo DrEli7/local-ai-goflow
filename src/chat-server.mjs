@@ -1,13 +1,14 @@
-/** Loopback-only local chat. No tools, cloud routing, credentials or chat logging. */
+/** Loopback-only chat UI and a bounded official Codex App Server bridge. */
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { ChatCoordinator } from './chat-coordinator.mjs';
 
 export const CHAT_PORT = 18441;
 export const CHAT_MODEL = 'qwen3:8b';
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const ROOT = new URL('../web/', import.meta.url);
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -16,6 +17,7 @@ const ASSETS = new Map([
   ['/app.css', ['app.css', 'text/css; charset=utf-8']],
   ['/app.mjs', ['app.mjs', 'text/javascript; charset=utf-8']],
   ['/chat-state.mjs', ['chat-state.mjs', 'text/javascript; charset=utf-8']],
+  ['/run-state.mjs', ['run-state.mjs', 'text/javascript; charset=utf-8']],
   ['/icon.svg', ['icon.svg', 'image/svg+xml']],
 ]);
 const error = (code) => Object.assign(new Error(code), { code });
@@ -113,7 +115,7 @@ async function readBody(request) {
   catch { throw error('invalid_messages'); }
 }
 
-export async function createChatServer({ transport = ollamaTransport, idleMs = 600000 } = {}) {
+export async function createChatServer({ transport = ollamaTransport, coordinator = new ChatCoordinator(), idleMs = 600000 } = {}) {
   const serverHash = createHash('sha256').update(await readFile(fileURLToPath(import.meta.url))).digest('hex');
   let active = false, lastActivity = Date.now();
   const server = http.createServer(async (request, response) => {
@@ -131,7 +133,14 @@ export async function createChatServer({ transport = ollamaTransport, idleMs = 6
       lastActivity = Date.now();
       let available = false;
       try { available = await transport.status(); } catch { /* fixed status only */ }
-      send(200, { app: 'local-ai-goflow-chat', version: VERSION, serverHash, pid: process.pid, model: CHAT_MODEL, available }); return;
+      const orchestrator = await coordinator.status();
+      send(200, { app: 'local-ai-goflow-chat', version: VERSION, serverHash, pid: process.pid, model: CHAT_MODEL,
+        localAvailable: available, available: orchestrator.available, orchestrator, mode: 'auto' }); return;
+    }
+    if (request.method === 'GET' && request.url === '/api/projects') {
+      if (request.headers['sec-fetch-site'] && !['same-origin','none'].includes(request.headers['sec-fetch-site'])) { send(403, { error: 'untrusted_origin' }); return; }
+      try { send(200, await coordinator.projects()); } catch { send(503, { error: 'coordinator_state_invalid' }); }
+      return;
     }
     if (request.method === 'GET' && ASSETS.has(request.url)) {
       const [file, mime] = ASSETS.get(request.url);
@@ -139,19 +148,40 @@ export async function createChatServer({ transport = ollamaTransport, idleMs = 6
       catch { send(503, { error: 'ui_not_installed' }); }
       lastActivity = Date.now(); return;
     }
-    if (request.method !== 'POST' || request.url !== '/api/chat') { send(404, { error: 'not_found' }); return; }
+    if (request.method !== 'POST' || !['/api/chat','/api/auto-chat','/api/respond','/api/projects'].includes(request.url)) { send(404, { error: 'not_found' }); return; }
     if (request.headers.origin !== origin || request.headers['x-local-chat'] !== '1'
       || request.headers['content-type'] !== 'application/json') { send(403, { error: 'untrusted_origin' }); return; }
+    if (['/api/respond','/api/projects'].includes(request.url)) {
+      try {
+        const body = await readBody(request);
+        const value = request.url === '/api/respond' ? coordinator.respond(body) : await coordinator.registerProject(body);
+        send(200, value);
+      } catch (failure) {
+        const allowed = ['invalid_project','project_limit','invalid_response','stale_approval','request_too_large'];
+        send(failure.code === 'stale_approval' ? 409 : 400, { error: allowed.includes(failure.code) ? failure.code : 'invalid_request' });
+      }
+      return;
+    }
     if (active) { send(409, { error: 'local_busy' }); return; }
     active = true;
     lastActivity = Date.now();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 120000);
+    const automatic = request.url === '/api/auto-chat';
+    const timer = setTimeout(() => controller.abort(), automatic ? 30 * 60000 : 120000);
     response.on('close', () => { if (!response.writableFinished) controller.abort(); });
     const emit = (event) => { if (!response.destroyed) response.write(JSON.stringify(event) + '\n'); };
     try {
       if (Number(request.headers['content-length']) > 65536) throw error('request_too_large');
-      const messages = validateMessages(await readBody(request));
+      const body = await readBody(request);
+      if (automatic) {
+        if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 3
+          || Object.keys(body).some(key => !['sessionId','projectId','messages'].includes(key))) throw error('invalid_messages');
+        const messages = validateMessages({ messages: body.messages });
+        response.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8' }); response.flushHeaders();
+        const result = await coordinator.chat({ sessionId: body.sessionId, projectId: body.projectId, messages }, { signal: controller.signal, emit });
+        emit({ done: true, ...result }); return;
+      }
+      const messages = validateMessages(body);
       if (!await transport.status()) { send(503, { error: 'local_model_unavailable' }); return; }
       if (controller.signal.aborted) throw error('aborted');
       response.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8' });
@@ -159,8 +189,11 @@ export async function createChatServer({ transport = ollamaTransport, idleMs = 6
       const result = await transport.chat(messages, { signal: controller.signal, onDelta: (delta) => emit({ delta }) });
       emit({ done: true, content: result.content, truncated: Boolean(result.truncated) });
     } catch (failure) {
-      const known = ['invalid_messages', 'request_too_large', 'local_busy', 'aborted', 'local_output_too_large', 'invalid_local_response', 'local_timeout'];
-      const code = known.includes(failure.code) ? failure.code : 'local_service_unavailable';
+      const known = ['invalid_messages', 'request_too_large', 'local_busy', 'aborted', 'local_output_too_large', 'invalid_local_response', 'local_timeout',
+        'invalid_project','session_project_locked','session_limit','chatgpt_login_required','unsupported_codex_provider',
+        'codex_not_installed','codex_unavailable','codex_disconnected','codex_protocol_error','codex_request_failed',
+        'codex_timeout','codex_empty_reply','codex_turn_failed','unsupported_approval','coordinator_state_invalid'];
+      const code = known.includes(failure.code) ? failure.code : automatic ? 'codex_unavailable' : 'local_service_unavailable';
       if (!response.headersSent) send(code === 'request_too_large' ? 413 : code === 'invalid_messages' ? 400 : 503, { error: code });
       else emit({ error: code });
     } finally {
@@ -178,7 +211,7 @@ export async function createChatServer({ transport = ollamaTransport, idleMs = 6
     if (!active && Date.now() - lastActivity >= idleMs) { server.close(); server.closeIdleConnections(); }
   }, Math.min(30000, idleMs)) : null;
   idleTimer?.unref();
-  server.on('close', () => clearInterval(idleTimer));
+  server.on('close', () => { clearInterval(idleTimer); coordinator.close(); });
   return server;
 }
 
