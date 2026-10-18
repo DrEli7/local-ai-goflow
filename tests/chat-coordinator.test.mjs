@@ -224,6 +224,66 @@ test('real MCP receipt parsing requires a valid task, candidate hash and trusted
   for (const item of invalid) assert.equal(toolReceipt(item), null, JSON.stringify({ server: item.server, tool: item.tool, result: item.result }));
 });
 
+test('local agent acceptance receipts require trusted completed GPT review and exact candidate evidence', () => {
+  const approved = { taskId: TASK_ID, status: 'accepted', candidateHash: HASH,
+    review: { reviewer: 'GPT', decision: 'approve', accepted: true } };
+  const rejected = { ...approved, status: 'rejected', review: { reviewer: 'GPT', decision: 'reject', accepted: false } };
+  for (const server of ['local_ai_goflow', 'plugin_local-ai-goflow_local_ai_goflow']) {
+    for (const tool of ['local_ai_agent_accept', 'mcp__local_ai_goflow__local_ai_agent_accept']) {
+      const acceptedItem = receiptItem(tool, approved, server);
+      assert.deepEqual(toolReceipt(acceptedItem), { source: 'local', taskId: TASK_ID, status: 'accepted' });
+      assert.deepEqual(toolReceipt(receiptItem(tool, rejected, server)), { source: 'local', taskId: TASK_ID, status: 'rejected' });
+      const textResult = structuredClone(acceptedItem);
+      textResult.result = { content: [{ type: 'text', text: JSON.stringify(approved) }] };
+      assert.deepEqual(toolReceipt(textResult), toolReceipt(acceptedItem));
+    }
+  }
+  const invalidValues = [
+    { ...approved, taskId: 'not-a-task-id' }, { ...approved, candidateHash: 'invalid' },
+    { ...approved, candidateHash: undefined, review: { ...approved.review, candidateHash: HASH } },
+    { ...approved, status: 'queued' }, { ...approved, status: 'local_completed_review_required' },
+    { ...approved, review: undefined }, { ...approved, review: { ...approved.review, reviewer: 'Qwen3' } },
+    { ...approved, review: { ...approved.review, accepted: false } },
+    { ...approved, review: { ...approved.review, decision: 'reject' } },
+    { ...rejected, review: { ...rejected.review, accepted: true } },
+    { ...rejected, review: { ...rejected.review, accepted: undefined } },
+  ];
+  for (const value of invalidValues) assert.equal(toolReceipt(receiptItem('local_ai_agent_accept', value)), null);
+  const validItem = receiptItem('local_ai_agent_accept', approved);
+  for (const item of [
+    { ...validItem, server: 'goflow' }, { ...validItem, server: 'untrusted_local_ai_goflow' },
+    { ...validItem, tool: 'not_local_ai_agent_accept' }, { ...validItem, tool: 'local_ai_agent_run' },
+    { ...validItem, status: 'failed' }, { ...validItem, status: 'inProgress' },
+    { ...validItem, error: { message: 'failed' } }, { ...validItem, result: { ...validItem.result, isError: true } },
+    { ...validItem, type: 'commandExecution' },
+  ]) assert.equal(toolReceipt(item), null);
+});
+
+test('local agent run and review progress does not create receipts until actual GPT acceptance completes', async t => {
+  const { coordinator, rpc } = await fixture(t); const run = await begin(coordinator, rpc);
+  const address = { threadId: run.threadId, turnId: run.turnId };
+  const invoke = (id, tool, status, value) => ({ id, type: 'mcpToolCall', server: 'local_ai_goflow', tool, status,
+    error: null, result: value ? { structuredContent: value, content: [] } : null });
+  rpc.notify('item/started', { ...address, item: invoke('agent_run', 'local_ai_agent_run', 'inProgress') });
+  assert.equal(run.events.at(-1).phase, 'local');
+  rpc.notify('item/completed', { ...address, item: invoke('agent_run', 'local_ai_agent_run', 'completed', {
+    taskId: TASK_ID, status: 'local_completed_review_required', candidateHash: HASH,
+  }) });
+  rpc.notify('item/started', { ...address, item: invoke('agent_task', 'local_ai_agent_task', 'inProgress') });
+  assert.equal(run.events.at(-1).phase, 'reviewing');
+  assert.equal(run.events.some(event => event.type === 'receipt'), false);
+  rpc.notify('item/started', { ...address, item: invoke('agent_accept', 'local_ai_agent_accept', 'inProgress') });
+  assert.equal(run.events.at(-1).phase, 'reviewing');
+  assert.equal(run.events.some(event => event.type === 'receipt'), false);
+  rpc.notify('item/completed', { ...address, item: invoke('agent_accept', 'local_ai_agent_accept', 'completed', {
+    taskId: TASK_ID, status: 'accepted', candidateHash: HASH,
+    review: { reviewer: 'GPT', decision: 'approve', accepted: true },
+  }) });
+  const receipts = run.events.filter(event => event.type === 'receipt');
+  assert.deepEqual(receipts, [{ type: 'receipt', runId: coordinator.active.runId, source: 'local', taskId: TASK_ID, status: 'accepted' }]);
+  rpc.finish(run, '已保存经过审核的结果'); await run.promise;
+});
+
 test('command approvals use opaque session-bound single-use local handles', async t => {
   const { coordinator, rpc } = await fixture(t); const run = await begin(coordinator, rpc);
   rpc.request(71, 'item/commandExecution/requestApproval', { ...run, command: 'node --test safe.test.mjs', cwd: 'fixture-project', reason: '运行项目测试' });
@@ -441,6 +501,32 @@ test('trusted empty GoFlow elicitation requires an explicit session-bound single
   assert.throws(() => coordinator.respond({ sessionId: 'browser_session', id: pending.id, decision: 'accept' }), { code: 'stale_approval' });
   assert.equal(rpc.responses.filter(response => response.id === 140).length, 1);
   rpc.finish(run); await run.promise;
+});
+
+test('local agent native tool confirmation is explicit, session-bound and never a review receipt', async t => {
+  const { coordinator, rpc } = await fixture(t);
+  for (const [index, serverName] of ['local_ai_goflow', 'plugin_local-ai-goflow_local_ai_goflow'].entries()) {
+    const run = await begin(coordinator, rpc);
+    const requestId = 200 + index;
+    rpc.request(requestId, 'mcpServer/elicitation/request', {
+      threadId: run.threadId, turnId: run.turnId, serverName, mode: 'form',
+      message: '确认本次应用已审核的本地 summary.md 候选', requestedSchema: { type: 'object', properties: {} },
+    });
+    const pending = run.events.find(event => event.type === 'pending');
+    assert.equal(pending.kind, 'approval');
+    assert.equal(pending.title, '本地 Qwen 工具请求本次操作确认');
+    assert.equal(rpc.responses.some(response => response.id === requestId), false);
+    assert.equal(run.events.some(event => event.type === 'receipt'), false);
+    assert.throws(() => coordinator.respond({ sessionId: 'other_session', id: pending.id, decision: 'accept' }), { code: 'stale_approval' });
+    assert.throws(() => coordinator.respond({ sessionId: 'browser_session', id: pending.id, decision: 'acceptForSession' }), { code: 'invalid_response' });
+    const decision = index ? 'decline' : 'accept';
+    assert.deepEqual(coordinator.respond({ sessionId: 'browser_session', id: pending.id, decision }), { ok: true });
+    assert.deepEqual(rpc.responses.filter(response => response.id === requestId), [{ id: requestId,
+      result: { action: decision, content: decision === 'accept' ? {} : null, _meta: null } }]);
+    assert.equal(run.events.some(event => event.type === 'receipt'), false, 'permission is distinct from candidate review');
+    assert.throws(() => coordinator.respond({ sessionId: 'browser_session', id: pending.id, decision: 'accept' }), { code: 'stale_approval' });
+    rpc.finish(run); await run.promise;
+  }
 });
 
 test('stopping a pending trusted empty elicitation sends a native decline and invalidates its handle', async t => {

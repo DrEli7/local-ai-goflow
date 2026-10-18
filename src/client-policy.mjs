@@ -7,8 +7,9 @@ import { parse } from 'smol-toml';
 
 const PLUGIN_ID = 'local-ai-goflow@goflow-local';
 const SERVER_NAME = 'local_ai_goflow';
-const TOOLS = new Set(['local_ai_status', 'local_ai_task', 'local_ai_review', 'local_ai_metrics', 'local_ai_goflow_plan']);
-const WRITES = new Set(['local_ai_task', 'local_ai_review', 'local_ai_goflow_plan']);
+const TOOLS = new Set(['local_ai_status', 'local_ai_task', 'local_ai_review', 'local_ai_metrics', 'local_ai_goflow_plan',
+  'local_ai_agent_run', 'local_ai_agent_task', 'local_ai_agent_accept']);
+const WRITES = new Set(['local_ai_task', 'local_ai_review', 'local_ai_goflow_plan', 'local_ai_agent_run', 'local_ai_agent_accept']);
 const MODES = new Set(['auto', 'approve', 'prompt', 'writes']);
 const TRANSPORT = new Set(['command', 'args', 'env', 'env_vars', 'url', 'cwd', 'http_headers', 'env_http_headers', 'bearer_token_env_var']);
 const MAX_CONFIG_BYTES = 1024 * 1024;

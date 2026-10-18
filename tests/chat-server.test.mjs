@@ -41,7 +41,7 @@ test('status identifies the app without exposing paths or requiring model infere
   const response = await fetch(base + '/api/status');
   const value = await response.json();
   assert.equal(value.app, 'local-ai-goflow-chat');
-  assert.equal(value.version, '0.4.0');
+  assert.equal(value.version, '0.5.0');
   assert.equal(value.model, 'qwen3:8b');
   assert.equal(value.available, true);
   assert.match(value.serverHash, /^[a-f0-9]{64}$/);

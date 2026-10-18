@@ -8,7 +8,7 @@ import { ChatCoordinator } from './chat-coordinator.mjs';
 
 export const CHAT_PORT = 18441;
 export const CHAT_MODEL = 'qwen3:8b';
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const ROOT = new URL('../web/', import.meta.url);
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],

@@ -2,17 +2,20 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { LocalWorker } from './core.mjs';
+import { LocalAgent } from './local-agent.mjs';
 import { inspectGoflow, planGoflow } from './goflow-bridge.mjs';
 import { STATE_DIR, startService } from './runtime.mjs';
 import { runCoordinatedLocal } from './coordination.mjs';
 
 const worker = new LocalWorker({ stateDir: STATE_DIR, startService });
-const server = new McpServer({ name: 'local-ai-goflow', version: '0.4.0' }, {
-  instructions: 'Delegate short low-risk tasks to installed local Qwen3. Outputs are untrusted drafts requiring GPT review. Actual project edits and Go requests use the existing guarded GoFlow workflow; this server never makes cloud inference requests.',
+const agent = new LocalAgent({ stateDir: STATE_DIR, startService });
+const commandKinds = ['text_stats', 'json_validate', 'csv_stats', 'javascript_check', 'node_version'];
+const server = new McpServer({ name: 'local-ai-goflow', version: '0.5.0' }, {
+  instructions: 'Delegate short low-risk text tasks to local Qwen3. For simple project text/data tasks, the local agent reads only selected files, creates snapshot candidates and runs fixed trusted checks; GPT reviews actual candidates and command evidence before accepting writes. Ordinary coding still uses guarded GoFlow. No arbitrary shell, file access, cloud inference or model self-approval.',
 });
 const textResult = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
-const guarded = (handler) => async (args) => {
-  try { return textResult(await handler(args)); }
+const guarded = (handler) => async (args, context) => {
+  try { return textResult(await handler(args, context)); }
   catch { return { isError: true, content: [{ type: 'text', text: 'local_plugin_operation_failed' }] }; }
 };
 const readOnly = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
@@ -23,6 +26,7 @@ server.registerTool('local_ai_status', {
   annotations: readOnly,
 }, guarded(async ({ projectDirectory }) => ({
   local: await worker.status(),
+  localAgent: { fileTools: true, commandKinds: [...commandKinds], writes: 'snapshot-then-GPT-accept' },
   ...(projectDirectory ? { goflow: await inspectGoflow(projectDirectory) } : {}),
   billing: 'Local GPU inference only; main GPT coordination still uses the current ChatGPT/Codex session. No savings percentage is claimed.',
 })));
@@ -42,6 +46,37 @@ server.registerTool('local_ai_task', {
   }).strict(),
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 }, guarded((args) => runCoordinatedLocal(worker, args, inspectGoflow)));
+
+server.registerTool('local_ai_agent_run', {
+  description: 'Let local Qwen3 perform a simple low-risk project task using explicitly selected relative files and fixed trusted command kinds. Reads only readFiles, prepares writeFiles in an isolated snapshot and runs declared checks without arbitrary shell. Ordinary coding belongs to GoFlow. Nothing is applied until GPT reads actual candidate files and exit codes and calls local_ai_agent_accept with the exact candidate hash. Preserves saved routing preferences, plugin disable and native tool approval.',
+  inputSchema: z.object({
+    projectDirectory: z.string().min(1).max(1024),
+    task: z.string().min(1).max(2000),
+    readFiles: z.array(z.string().min(1).max(240)).max(8),
+    writeFiles: z.array(z.string().min(1).max(240)).max(8),
+    commands: z.array(z.object({ id: z.string().min(1).max(64), kind: z.enum(commandKinds),
+      path: z.string().min(1).max(240).optional() }).strict()).max(8),
+    risk: z.enum(['low', 'high']),
+    explicitLocalRequest: z.boolean().default(false).describe('True only when the human explicitly requested local execution of this task; overrides saved routing preference, never plugin disable, tool approval or project validation.'),
+    maxSteps: z.number().int().min(3).max(8).default(8),
+  }).strict(),
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, guarded((args, context) => runCoordinatedLocal({
+  run: task => agent.run({ projectDirectory: args.projectDirectory, ...task }, { signal: context?.mcpReq?.signal }),
+}, args, inspectGoflow)));
+
+server.registerTool('local_ai_agent_task', {
+  description: 'Read the existing local agent task, actual candidate files, declared command results and candidate hash for GPT review. No inference, commands or file application.',
+  inputSchema: z.object({ taskId: z.string().uuid() }).strict(),
+  annotations: readOnly,
+}, guarded(({ taskId }) => agent.task(taskId)));
+
+server.registerTool('local_ai_agent_accept', {
+  description: 'Record GPT review of an exact local agent candidate after reading its files and command exit codes. approve applies only declared snapshot writes after original file hash checks; reject preserves evidence without application. Cannot bypass native approval. Local Qwen3 cannot approve its own work.',
+  inputSchema: z.object({ taskId: z.string().uuid(), candidateHash: z.string().regex(/^[a-f0-9]{64}$/),
+    reviewer: z.literal('GPT'), decision: z.enum(['approve', 'reject']), feedback: z.string().min(12).max(2000) }).strict(),
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+}, guarded((args, context) => agent.review(args, { signal: context?.mcpReq?.signal })));
 
 server.registerTool('local_ai_review', {
   description: 'Record GPT review of an exact local task/candidate hash after reading the output. For length requirements cite deterministic outputMetrics counts, never a mental estimate. Does not apply files, execute code or submit to Go. Rejection preserves evidence.',

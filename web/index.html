@@ -59,11 +59,11 @@
       <section id="welcome" class="welcome">
         <div class="welcome-mark" aria-hidden="true">G</div>
         <h2 class="welcome__title">把需求交给一个窗口</h2>
-        <p class="welcome__subtitle">Codex 理解需求并协调分工，审核后把结果带回来。</p>
-        <div class="division-strip" aria-label="默认分工"><span>本地 · 简单任务</span><span>Go · 普通编码</span><span>GPT · 协调与审核</span></div>
+        <p class="welcome__subtitle">本地 Qwen 可读取选定项目文件、生成结果并执行受限检查，GPT 审核后保存；普通编码交给 Go。</p>
+        <div class="division-strip" aria-label="默认分工"><span>本地 · 文本与数据</span><span>Go · 普通编码</span><span>GPT · 协调与审核</span></div>
         <div class="prompts">
           <button class="prompt" type="button" data-prompt="把下面这段文字总结成三句话：">总结一段文字</button>
-          <button class="prompt" type="button" data-prompt="帮我把下面这段文字改得更简洁：">帮我改写一段文字</button>
+          <button class="prompt" type="button" data-prompt="读取当前工作目录的 notes.txt，将要点整理到 summary.md，并检查生成文本的字数。">读文件并保存摘要</button>
           <button class="prompt" type="button" data-prompt="在当前工作目录写一个 JavaScript 防抖函数，补齐测试，并审核实现。">实现防抖函数并测试</button>
         </div>
       </section>

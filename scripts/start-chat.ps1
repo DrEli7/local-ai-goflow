@@ -7,7 +7,7 @@ $serverScript = Join-Path $packageRoot 'src\chat-server.mjs'
 $stateDirectory = Join-Path $packageRoot 'state\chat'
 $browserProfileDirectory = Join-Path $stateDirectory 'browser-profile'
 $chatUrl = 'http://127.0.0.1:18441/'
-$expectedVersion = '0.4.0'
+$expectedVersion = '0.5.0'
 
 function Assert-UnlinkedPath([string]$Path) {
     $cursor = [IO.Path]::GetFullPath($Path)

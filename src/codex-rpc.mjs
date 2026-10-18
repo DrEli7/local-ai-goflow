@@ -82,7 +82,7 @@ export class CodexRpc extends EventEmitter {
     child.on('error', () => this._ended(child, 'codex_unavailable'));
     child.on('exit', () => this._ended(child, 'codex_disconnected'));
     try {
-      await this.call('initialize', { clientInfo: { name: 'local_ai_goflow_chat', title: 'Local AI GoFlow', version: '0.4.0' },
+      await this.call('initialize', { clientInfo: { name: 'local_ai_goflow_chat', title: 'Local AI GoFlow', version: '0.5.0' },
         capabilities: { experimentalApi: false, requestAttestation: false } });
       this._write({ method: 'initialized' });
     } catch (failure) { this.close(); throw failure; }

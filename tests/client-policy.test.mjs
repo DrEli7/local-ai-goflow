@@ -53,14 +53,37 @@ test('list metadata is available under tool filters and prompt defaults without 
 });
 
 test('prompt requires native approval for every selected tool; writes gates every writing tool', () => {
-  for (const tool of ['local_ai_status', 'local_ai_task', 'local_ai_review', 'local_ai_metrics', 'local_ai_goflow_plan']) {
+  for (const tool of ['local_ai_status', 'local_ai_task', 'local_ai_review', 'local_ai_metrics', 'local_ai_goflow_plan',
+    'local_ai_agent_run', 'local_ai_agent_task', 'local_ai_agent_accept']) {
     assert.throws(() => validate(globalServer({ default_tools_approval_mode: 'prompt' }), tool), rejected('APPROVAL_REQUIRED'));
   }
-  for (const tool of ['local_ai_task', 'local_ai_review', 'local_ai_goflow_plan']) {
+  for (const tool of ['local_ai_task', 'local_ai_review', 'local_ai_goflow_plan', 'local_ai_agent_run', 'local_ai_agent_accept']) {
     assert.throws(() => validate(pluginServer({ default_tools_approval_mode: 'writes' }), tool), rejected('APPROVAL_REQUIRED'));
   }
-  for (const tool of ['local_ai_status', 'local_ai_metrics']) {
+  for (const tool of ['local_ai_status', 'local_ai_metrics', 'local_ai_agent_task']) {
     assert.deepEqual(validate(globalServer({ default_tools_approval_mode: 'writes' }), tool), {});
+  }
+});
+
+test('new local agent tools obey direct and plugin-specific filters, disablement and per-tool approval', () => {
+  for (const tool of ['local_ai_agent_run', 'local_ai_agent_task', 'local_ai_agent_accept']) {
+    for (const factory of [globalServer, pluginServer]) {
+      assert.throws(() => validate(factory({ enabled: false }), tool), rejected('SERVICE_DISABLED'));
+      assert.throws(() => validate(factory({ enabled_tools: ['local_ai_task'] }), tool), rejected('TOOL_DISABLED'));
+      assert.throws(() => validate(factory({ disabled_tools: [tool] }), tool), rejected('TOOL_DISABLED'));
+      assert.throws(() => validate(factory({ tools: { [tool]: { approval_mode: 'prompt' } } }), tool), rejected('APPROVAL_REQUIRED'));
+      assert.deepEqual(validate(factory({ enabled_tools: [tool], tools: { [tool]: { output_token_limit: 800 } } }), tool), { outputByteLimit: 800 });
+    }
+    const guardedUser = enabled();
+    guardedUser.mcp_servers = { [SERVER]: { tools: { [tool]: { approval_mode: 'prompt' } } } };
+    assert.throws(() => validateLocalPolicy([user(guardedUser), project(globalServer({ tools: { [tool]: { approval_mode: 'auto' } } }))], tool), rejected('APPROVAL_REQUIRED'));
+  }
+});
+
+test('malformed local agent tool policy fails closed even while requesting unrelated metadata', () => {
+  for (const tool of ['local_ai_agent_run', 'local_ai_agent_task', 'local_ai_agent_accept']) {
+    for (const policy of [null, { approval_mode: 'always' }, { output_token_limit: -1 }])
+      assert.throws(() => validate(globalServer({ tools: { [tool]: policy } }), 'local_ai_status'), rejected('CONFIG_FORMAT'));
   }
 });
 

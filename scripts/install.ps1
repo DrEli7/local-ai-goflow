@@ -101,7 +101,7 @@ Write-SafeText $ownerMarker 'Owned by the local-ai-goflow installer.'
 Write-SafeText (Join-Path $pluginTarget '.codex-plugin\plugin.json') ([IO.File]::ReadAllText((Join-Path $packageRoot '.codex-plugin\plugin.json')))
 Write-SafeText (Join-Path $pluginTarget 'skills\local-ai-goflow\SKILL.md') ([IO.File]::ReadAllText((Join-Path $packageRoot 'skills\local-ai-goflow\SKILL.md')))
 $mcp = [ordered]@{ mcpServers=[ordered]@{ local_ai_goflow=[ordered]@{
-    command=$nodeExe; args=@((Join-Path $packageRoot 'src\server.mjs')); startup_timeout_sec=20; tool_timeout_sec=300
+    command=$nodeExe; args=@((Join-Path $packageRoot 'src\server.mjs')); startup_timeout_sec=20; tool_timeout_sec=600
 } } }
 Write-SafeText (Join-Path $pluginTarget '.mcp.json') ($mcp | ConvertTo-Json -Depth 8)
 $clientUri = ([Uri](Join-Path $packageRoot 'scripts\client.mjs')).AbsoluteUri

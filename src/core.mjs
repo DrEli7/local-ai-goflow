@@ -59,7 +59,7 @@ function allStringLength(value) {
 }
 
 // Match recognizable credential material, not ordinary references to API keys or code identifiers.
-function containsCredential(value) {
+export function containsCredential(value) {
   const strings = (item) => typeof item === 'string' ? [item]
     : Array.isArray(item) ? item.flatMap(strings)
       : object(item) ? Object.values(item).flatMap(strings) : [];
@@ -102,8 +102,8 @@ function validateTask(args) {
 }
 
 /** Strict JSON decoding, including duplicate keys and non-finite numeric overflow. */
-function strictJsonParse(raw) {
-  if (typeof raw !== 'string' || Buffer.byteLength(raw, 'utf8') > MAX_RESPONSE_BYTES) {
+export function strictJsonParse(raw, maxBytes = MAX_RESPONSE_BYTES) {
+  if (typeof raw !== 'string' || Buffer.byteLength(raw, 'utf8') > maxBytes) {
     throw fixedError('invalid_json');
   }
   let index = 0;
@@ -184,7 +184,7 @@ function decodeTransport(value) {
   return typeof value === 'string' ? strictJsonParse(value) : value;
 }
 
-function hasRemoteMarker(value, depth = 0) {
+export function hasRemoteMarker(value, depth = 0) {
   if (depth > 16) return true;
   if (!object(value) && !Array.isArray(value)) return false;
   for (const [key, item] of Object.entries(value)) {

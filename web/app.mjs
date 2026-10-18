@@ -9,6 +9,9 @@ const errors = {
   local_busy: '本地模型正在处理另一个请求，请稍后继续。',
   local_model_unavailable: '本地模型尚未就绪，当前任务没有自动换用其他模型。',
   local_service_unavailable: '本地模型连接中断，请检查 Ollama 后继续。',
+  local_agent_failed: '本地工具任务未完成，请查看实际任务记录后继续。',
+  local_agent_invalid_request: '本地工具任务的文件或检查命令超出范围，请缩小到选定项目内的简单任务。',
+  local_agent_candidate_changed: '候选或原文件已经变化，本次审核不会覆盖文件。请重新核对任务记录。',
   invalid_messages: '对话超出了输入范围，请新建聊天或缩短输入。',
   request_too_large: '输入过长，请缩短后再发送。',
   codex_unavailable: 'Codex 会话服务尚未就绪，请点“重新连接”。',
@@ -331,7 +334,7 @@ const clear = button('清空窗口历史', 'text-button', () => {
   clearArmed = false; clear.textContent = '清空窗口历史'; persist(); render();
 });
 document.querySelector('.sidebar__foot').prepend(clear);
-document.querySelector('.sidebar__note').textContent = '窗口历史保存在本机。需求会交给使用 ChatGPT 登录的 Codex；本地模型与 Go 按规则接收所需内容。清空窗口历史不会删除项目文件或后台任务记录。';
-const footer = element('p', 'composer-note', '本地处理简单任务 · Go 实现普通编码 · GPT 协调审核　｜　沿用本机 Codex 权限，需要确认的操作会在此窗口询问'); $('composer').append(footer);
+document.querySelector('.sidebar__note').textContent = '窗口历史保存在本机。Codex 协调本地模型与 Go；本地工具只读取选定项目文件，写入经 GPT 审核，并支持固定检查命令。清空窗口历史不会删除项目文件或后台任务记录。';
+const footer = element('p', 'composer-note', '本地整理文件与数据 · Go 实现普通编码 · GPT 审核后保存　｜　受限检查命令，沿用本机权限，需要确认时在此窗口询问'); $('composer').append(footer);
 window.addEventListener('pagehide', stop);
 render(); checkStatus(); loadProjects(); setInterval(checkStatus, 30000); input.focus();
