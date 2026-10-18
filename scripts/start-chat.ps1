@@ -70,7 +70,10 @@ $NodeExe = [IO.Path]::GetFullPath($NodeExe)
 Assert-UnlinkedPath $NodeExe
 $nodeVersion = & $NodeExe --version
 if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v(\d+)\.' -or [int]$Matches[1] -lt 24) { throw 'Node.js 24 or later is required.' }
-$serverHash = (Get-FileHash -LiteralPath $serverScript -Algorithm SHA256).Hash.ToLowerInvariant()
+$hashStream = [IO.File]::OpenRead($serverScript)
+$hashAlgorithm = [Security.Cryptography.SHA256]::Create()
+try { $serverHash = [BitConverter]::ToString($hashAlgorithm.ComputeHash($hashStream)).Replace('-', '').ToLowerInvariant() }
+finally { $hashStream.Dispose(); $hashAlgorithm.Dispose() }
 $health = Get-ChatHealth
 $reusable = Test-MatchingHealth $health
 if (-not $reusable -and (Test-ChatPort)) { throw 'Port 18441 is occupied by an unknown or different chat server. Nothing was stopped. Inspect the owner or close the previous version before retrying.' }
@@ -114,7 +117,7 @@ if (-not $NoWindow) {
             '--no-default-browser-check',
             ('--app=' + $chatUrl)
         )
-        Start-Process -FilePath $browserExe -ArgumentList $browserArguments | Out-Null
+        Start-Process -FilePath $browserExe -ArgumentList $browserArguments -WindowStyle Normal | Out-Null
     } else {
         Write-Output 'Edge/Chrome was not found in a standard location; opening the chat in the system browser with its existing profile. A dedicated chat browser profile requires Edge or Chrome.'
         Start-Process -FilePath $chatUrl | Out-Null

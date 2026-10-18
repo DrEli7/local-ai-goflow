@@ -29,7 +29,10 @@ finally {
 }
 
 if (-not (Test-Path -LiteralPath $serverScript -PathType Leaf)) { throw 'The package chat server is missing; refusing to stop a process.' }
-$serverHash = (Get-FileHash -LiteralPath $serverScript -Algorithm SHA256).Hash.ToLowerInvariant()
+$hashStream = [IO.File]::OpenRead($serverScript)
+$hashAlgorithm = [Security.Cryptography.SHA256]::Create()
+try { $serverHash = [BitConverter]::ToString($hashAlgorithm.ComputeHash($hashStream)).Replace('-', '').ToLowerInvariant() }
+finally { $hashStream.Dispose(); $hashAlgorithm.Dispose() }
 if ($health.app -cne 'local-ai-goflow-chat' -or $health.version -cne '0.3.0' -or $health.serverHash -cne $serverHash -or $health.pid -isnot [int] -or $health.pid -le 0) { throw 'The running service does not match this package version and hash. No process was stopped.' }
 if (-not $NodeExe) { $NodeExe = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
 if (-not [IO.Path]::IsPathRooted($NodeExe) -or -not (Test-Path -LiteralPath $NodeExe -PathType Leaf)) { throw 'NodeExe must name the existing absolute Node executable used at launch.' }

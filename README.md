@@ -57,7 +57,7 @@ powershell -NoProfile -File .\scripts\install-chat-shortcut.ps1 -CheckOnly
 powershell -NoProfile -File .\scripts\install-chat-shortcut.ps1
 ```
 
-启动器以隐藏进程运行本包聊天服务，再以可见的 Edge/Chrome 应用窗口打开聊天界面。应用窗口使用本包 `state/chat/browser-profile/` 的独立本机配置，重复打开会复用该配置，不继承日常浏览器的个人扩展，也不修改原浏览器设置或全局禁用扩展。启动参数包含固定应用地址、独立 `--user-data-dir`、`--no-first-run` 和 `--no-default-browser-check`。浏览器不在常见安装位置时，会明确提示并使用系统浏览器的原有配置，此回退不提供独立应用配置。聊天页面固定为 `http://127.0.0.1:18441/`；仅启动服务可加 `-NoWindow`。启动器检查服务的应用标识、版本和当前服务器文件 SHA256，匹配时复用；端口被其他程序或不同版本占用时拒绝启动，不终止占用者。`-CheckOnly` 只做预检，不创建浏览器配置、启动服务或窗口。
+启动器以隐藏进程运行本包聊天服务，再以可见的 Edge/Chrome 应用窗口打开聊天界面。应用窗口使用本包 `state/chat/browser-profile/` 的独立本机配置，重复打开会复用该配置，不修改日常浏览器的设置或扩展。系统策略统一安装的扩展仍由浏览器管理。启动参数包含固定应用地址、独立 `--user-data-dir`、`--no-first-run` 和 `--no-default-browser-check`。浏览器不在常见安装位置时，会明确提示并使用系统浏览器的原有配置，此回退不提供独立应用配置。聊天页面固定为 `http://127.0.0.1:18441/`；仅启动服务可加 `-NoWindow`。启动器检查服务的应用标识、版本和当前服务器文件 SHA256，匹配时复用；端口被其他程序或不同版本占用时拒绝启动，不终止占用者。`-CheckOnly` 只做预检，不创建浏览器配置、启动服务或窗口。
 
 桌面入口默认名为“本地 AI - Qwen3”。安装器不会覆盖不属于本应用的同名快捷方式；可用 `-ShortcutName 'Qwen3 聊天'` 选择另一个名字。更新自己创建的入口前，会把旧入口备份到忽略提交的 `state/chat/shortcut-backups/`。如需运行个人自建的启动包装，可显式提供 `-LauncherPath`，值必须是已存在的可信 `.ps1` 绝对路径；该脚本会在点击入口时执行，请先阅读其内容。公开启动器不会自动猜测或启动个人的 Ollama 包装。
 
